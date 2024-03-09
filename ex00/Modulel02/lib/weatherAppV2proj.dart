@@ -119,6 +119,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _onSearchLocationSubmitted(String value) {
+    if (value.isEmpty) {
+      _getLocation();
+    }
     // Strip value for max length
     if (value.length > 100) {
       value = value.substring(0, 100);

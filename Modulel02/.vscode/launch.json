@@ -1,0 +1,62 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ex00",
+      "cwd": "ex00",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/weatherAppV2proj.dart"
+    },
+    {
+      "name": "ex00 (profile mode)",
+      "cwd": "ex00",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "program": "lib/weatherAppV2proj.dart"
+    },
+    {
+      "name": "ex00 (release mode)",
+      "cwd": "ex00",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release",
+      "program": "lib/weatherAppV2proj.dart"
+    },
+    {
+      "name": "ex01",
+      "cwd": "ex01",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/weatherAppV2proj.dart"
+    },
+    {
+      "name": "ex01 (profile mode)",
+      "cwd": "ex01",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "program": "lib/weatherAppV2proj.dart"
+    },
+    {
+      "name": "ex01 (release mode)",
+      "cwd": "ex01",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release",
+      "program": "lib/weatherAppV2proj.dart"
+    },
+    {
+      "name": "Debug Test in Chrome",
+      "cwd": "ex00",
+      "type": "dart",
+      "request": "launch",
+      "program": "test/widget_test.dart" // Update this path to your test file
+      // "args": ["--web-renderer=html", "-d", "chrome"]
+    }
+  ]
+}

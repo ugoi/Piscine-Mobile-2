@@ -1,6 +1,7 @@
 import 'package:ex00/weatherService.dart';
 import 'package:flutter/material.dart';
 import 'package:location/location.dart';
+import 'package:async/async.dart';
 
 void main() {
   runApp(const MyApp());
@@ -63,6 +64,9 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   late Location location = widget.weatherService.location;
 
+  // Variable to keep track of the cancelable operation
+  CancelableOperation? _fetchLocationOperation;
+
   @override
   void initState() {
     super.initState();
@@ -96,16 +100,22 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _getLocation() async {
+    // Cancel any existing operation before starting a new one
+    _fetchLocationOperation?.cancel();
+    _fetchLocationOperation = CancelableOperation.fromFuture(
+      location.getLocation(),
+      onCancel: () => {debugPrint('onCancel')},
+    );
+
     try {
-      setState(() {
-        _displayLocation = 'Loading location...';
-      });
-      final _locationData = await location.getLocation();
-      setState(() {
-        _displayLocation =
-            'Lat: ${_locationData.latitude}, Long: ${_locationData.longitude}';
-        _isLocationEnabled = true;
-      });
+      final _locationData = await _fetchLocationOperation!.value;
+      if (!_fetchLocationOperation!.isCanceled) {
+        setState(() {
+          _displayLocation =
+              'Lat: ${_locationData.latitude}, Long: ${_locationData.longitude}';
+          _isLocationEnabled = true;
+        });
+      }
     } catch (e) {
       setState(() {
         _searchLocation = '';
@@ -113,6 +123,24 @@ class _MyHomePageState extends State<MyHomePage> {
         _isLocationEnabled = false;
       });
     }
+
+    // try {
+    //   setState(() {
+    //     _displayLocation = 'Loading location...';
+    //   });
+    //   final _locationData = await location.getLocation();
+    //   setState(() {
+    //     _displayLocation =
+    //         'Lat: ${_locationData.latitude}, Long: ${_locationData.longitude}';
+    //     _isLocationEnabled = true;
+    //   });
+    // } catch (e) {
+    //   setState(() {
+    //     _searchLocation = '';
+    //     _displayLocation = 'Failed to get location: $e';
+    //     _isLocationEnabled = false;
+    //   });
+    // }
   }
 
   int _currentIndex = 0;
@@ -124,9 +152,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _onSearchLocationSubmitted(String value) {
-
-
-
+    _fetchLocationOperation?.cancel();
     if (value.isEmpty) {
       _getLocation();
     }

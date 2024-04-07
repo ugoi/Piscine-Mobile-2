@@ -38,6 +38,7 @@ dependencies:
   location: ^5.0.3
   mocktail: ^1.0.3
   http: ^1.2.1
+  async: ^2.11.0
 
 dev_dependencies:
   flutter_test:

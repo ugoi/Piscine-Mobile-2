@@ -1,32 +1,33 @@
-import 'package:async/async.dart';
 import 'package:ex01/models.dart';
-import 'package:ex01/weatherService.dart';
+import 'package:ex01/weatherRepository.dart';
 import 'package:flutter/material.dart';
 import 'package:location/location.dart';
 
 enum LocationState { loading, enabled, disabled, requested }
 
 class WeatherChangeNotifier extends ChangeNotifier {
-  final WeatherService _weatherService;
+  final WeatherRepository weatherRepository;
 
-  WeatherChangeNotifier(this._weatherService) {}
+  WeatherChangeNotifier({required this.weatherRepository});
 
-  late Location location = _weatherService.location;
+  late Location location = weatherRepository.location;
 
   // Variable to keep track of the cancelable operation
-  CancelableOperation? _fetchLocationOperation;
+  Future<LocationData> _fetchLocationOperation =
+      Future.value(LocationData.fromMap({}));
+  Future<LocationData> get fetchLocationOperation => _fetchLocationOperation;
 
-  List<City> _cities = [
-    City(name: 'Amriswil', region: 'Thurgau', country: 'Switzerland'),
-    City(name: 'Amsterdam', region: 'Noord-Holland', country: 'Netherlands'),
-  ];
-  List<City> get cities => _cities;
+  Future<List<City>> _cities = Future.value([]);
+  Future<List<City>> get cities => _cities;
+
+  City? _city = null;
+  City? get city => _city;
 
   String _displayLocation = '';
   String get displayLocation => _displayLocation;
 
-  bool _isLocationEnabled = false;
-  bool get isLocationEnabled => _isLocationEnabled;
+  Future<bool>? _isLocationEnabled = null;
+  Future<bool>? get isLocationEnabled => _isLocationEnabled;
 
   LocationState _locationState = LocationState.loading; // Updated to use enum
   LocationState get locationState => _locationState; // Updated to use enum
@@ -37,11 +38,15 @@ class WeatherChangeNotifier extends ChangeNotifier {
   bool _searchTapped = false;
   bool get searchTapped => _searchTapped;
 
+  Future<WeatherData>? _weatherData;
+  Future<WeatherData>? get weatherData => _weatherData;
+
   Future<void> requestLocationPermission() async {
     final _serviceEnabled = await location.serviceEnabled();
     if (!_serviceEnabled) {
       final _serviceRequest = await location.requestService();
       if (!_serviceRequest) {
+        _isLocationEnabled = Future.value(false);
         return;
       }
     }
@@ -50,11 +55,12 @@ class WeatherChangeNotifier extends ChangeNotifier {
     if (_permissionGranted == PermissionStatus.denied) {
       final _permissionRequest = await location.requestPermission();
       if (_permissionRequest != PermissionStatus.granted) {
+        _isLocationEnabled = Future.value(false);
         return;
       }
     }
 
-    _isLocationEnabled = true;
+    _isLocationEnabled = Future.value(true);
     _locationState = LocationState.enabled;
     getLocation();
     notifyListeners();
@@ -66,7 +72,6 @@ class WeatherChangeNotifier extends ChangeNotifier {
 
   void onSearchSubmitted(String value) {
     _searchTapped = false;
-    _fetchLocationOperation?.cancel();
     if (value.isEmpty) {
       getLocation();
     }
@@ -81,7 +86,6 @@ class WeatherChangeNotifier extends ChangeNotifier {
   }
 
   void onSearchTap() {
-    _searchLocation = '';
     _searchTapped = true;
     searchCities(_searchLocation);
     notifyListeners();
@@ -100,40 +104,24 @@ class WeatherChangeNotifier extends ChangeNotifier {
 
   void onCitySelected(City city) {
     _searchTapped = false;
-    _searchLocation = city.name;
-    _displayLocation = city.name;
+    _searchLocation = city.name ?? '';
+    _displayLocation = city.name ?? '';
+    _city = city;
     notifyListeners();
   }
 
-  void getLocation() async {
-    // Cancel any existing operation before starting a new one
-    _fetchLocationOperation?.cancel();
-
-    _fetchLocationOperation = CancelableOperation.fromFuture(
-      location.getLocation(),
-      onCancel: () => {debugPrint('onCancel')},
-    );
-
-    try {
-      final _locationData = await _fetchLocationOperation!.value;
-      if (!_fetchLocationOperation!.isCanceled) {
-        _displayLocation =
-            'Lat: ${_locationData.latitude}, Long: ${_locationData.longitude}';
-        _isLocationEnabled = true;
-        _locationState = LocationState.enabled;
-        notifyListeners();
-      }
-    } catch (e) {
-      _searchLocation = '';
-      _displayLocation = 'Failed to get location: $e';
-      _isLocationEnabled = false;
-      _locationState = LocationState.disabled;
-      notifyListeners();
-    }
+  Future<void> getLocation() async {
+    _fetchLocationOperation = location.getLocation();
+    notifyListeners();
   }
 
   Future<void> searchCities(String name) async {
-    _cities = await _weatherService.searchCities(name);
+    _cities = weatherRepository.getCities(name);
     notifyListeners();
+  }
+
+  Future<void> getWeatcherForCurrentLocation() async {
+    LocationData currentLocation = await location.getLocation();
+    _weatherData = weatherRepository.getWeatherData(currentLocation);
   }
 }

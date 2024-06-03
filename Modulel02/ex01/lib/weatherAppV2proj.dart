@@ -1,17 +1,19 @@
+import 'package:ex01/models.dart';
 import 'package:ex01/weatherChangeNotifier.dart';
+import 'package:ex01/weatherRepository.dart';
 import 'package:ex01/weatherService.dart';
 import 'package:flutter/material.dart';
 import 'package:location/location.dart';
-import 'package:async/async.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
-  runApp(
-    ChangeNotifierProvider(
-      create: (context) => WeatherChangeNotifier(WeatherService()),
-      child: const MyApp(),
-    ),
-  );
+  runApp(ChangeNotifierProvider(
+    create: (context) => WeatherChangeNotifier(
+        weatherRepository: WeatherRepository(
+            weatherService: WeatherService(httpClient: http.Client()))),
+    child: const MyApp(),
+  ));
 }
 
 class MyApp extends StatelessWidget {
@@ -26,27 +28,21 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: MyHomePage(
-          title: 'Flutter Demo Home Page', weatherService: WeatherService()),
+      home: MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage(
-      {super.key, required this.title, required this.weatherService});
+  const MyHomePage({super.key, required this.title});
 
   final String title;
-
-  final WeatherService weatherService;
 
   @override
   State<MyHomePage> createState() => MyHomePageState();
 }
 
 class MyHomePageState extends State<MyHomePage> {
-  late Location location = widget.weatherService.location;
-
   @override
   void initState() {
     super.initState();
@@ -103,37 +99,46 @@ class MyHomePageState extends State<MyHomePage> {
                 ),
               ]),
           body: weather.searchTapped == true
-              ? ListView.builder(
-                  itemCount: weather.cities.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: weather.cities[index].name,
-                              style: TextStyle(
-                                  fontWeight:
-                                      FontWeight.bold), // Makes text bold
+              ? FutureBuilder(
+                  future: weather.cities,
+                  builder: (BuildContext context,
+                      AsyncSnapshot<List<City>> snapshot) {
+                    if (snapshot.hasData) {
+                      return ListView.builder(
+                        itemCount: snapshot.data!.length,
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            title: RichText(
+                              text: TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: snapshot.data![index].name,
+                                    style: TextStyle(
+                                        fontWeight:
+                                            FontWeight.bold), // Makes text bold
+                                  ),
+                                  TextSpan(
+                                    text: ', ' +
+                                        (snapshot.data?[index].region ?? '') +
+                                        ', ' +
+                                        (snapshot.data?[index].country ?? ''),
+                                    style: TextStyle(
+                                        fontWeight: FontWeight
+                                            .normal), // Keeps rest of the text normal
+                                  ),
+                                ],
+                              ),
                             ),
-                            TextSpan(
-                              text: ', ' +
-                                  weather.cities[index].region +
-                                  ', ' +
-                                  weather.cities[index].country,
-                              style: TextStyle(
-                                  fontWeight: FontWeight
-                                      .normal), // Keeps rest of the text normal
-                            ),
-                          ],
-                        ),
-                      ),
-                      onTap: () {
-                        weather.onCitySelected(weather.cities[index]);
-                      },
-                    );
-                  },
-                )
+                            onTap: () {
+                              weather.onCitySelected(snapshot.data![index]);
+                            },
+                          );
+                        },
+                      );
+                    } else {
+                      return CircularProgressIndicator();
+                    }
+                  })
               : PageView(
                   controller: _pageViewController,
                   onPageChanged: (int index) {
@@ -148,58 +153,49 @@ class MyHomePageState extends State<MyHomePage> {
                         child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: <Widget>[
-                              if (weather.locationState ==
-                                      LocationState.enabled ||
-                                  weather.displayLocation.isNotEmpty) ...[
-                                Text('Currently',
-                                    style: TextStyle(fontSize: 24)),
-                                Text(weather.displayLocation,
-                                    style: TextStyle(fontSize: 24)),
-                              ] else ...[
-                                Text('Location is not enabled',
-                                    style: TextStyle(
-                                        fontSize: 24, color: Colors.red)),
-                              ],
-                            ]),
-                      ),
-                    ),
-                    Center(
-                      key: const Key('TodayPage'),
-                      child: FittedBox(
-                        child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: <Widget>[
-                              if (weather.locationState ==
-                                      LocationState.enabled ||
-                                  weather.searchLocation.isNotEmpty) ...[
-                                Text('Today', style: TextStyle(fontSize: 24)),
-                                Text(weather.displayLocation,
-                                    style: TextStyle(fontSize: 24)),
-                              ] else ...[
-                                Text('Location is not enabled',
-                                    style: TextStyle(
-                                        fontSize: 24, color: Colors.red)),
-                              ],
-                            ]),
-                      ),
-                    ),
-                    Center(
-                      key: const Key('WeeklyPage'),
-                      child: FittedBox(
-                        child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: <Widget>[
-                              if (weather.locationState ==
-                                      LocationState.enabled ||
-                                  weather.searchLocation.isNotEmpty) ...[
-                                Text('Weekly', style: TextStyle(fontSize: 24)),
-                                Text(weather.displayLocation,
-                                    style: TextStyle(fontSize: 24)),
-                              ] else ...[
-                                Text('Location is not enabled',
-                                    style: TextStyle(
-                                        fontSize: 24, color: Colors.red)),
-                              ],
+                              FutureBuilder(
+                                  future: weather.isLocationEnabled,
+                                  builder: (BuildContext context,
+                                      AsyncSnapshot<bool> snapshot) {
+                                    if (snapshot.hasData) {
+                                      if (snapshot.data!) {
+                                        return FutureBuilder(
+                                            future:
+                                                weather.fetchLocationOperation,
+                                            builder: (BuildContext context,
+                                                AsyncSnapshot<LocationData>
+                                                    snapshot) {
+                                              if (snapshot.hasData) {
+                                                return Column(
+                                                  children: [
+                                                    Text('Currently',
+                                                        style: TextStyle(
+                                                            fontSize: 24)),
+                                                    Text(
+                                                        snapshot.data!.latitude
+                                                                .toString() +
+                                                            ', ' +
+                                                            snapshot
+                                                                .data!.longitude
+                                                                .toString(),
+                                                        style: TextStyle(
+                                                            fontSize: 24)),
+                                                  ],
+                                                );
+                                              } else {
+                                                return CircularProgressIndicator();
+                                              }
+                                            });
+                                      } else {
+                                        return Text('Location is not enabled',
+                                            style: TextStyle(
+                                                fontSize: 24,
+                                                color: Colors.red));
+                                      }
+                                    } else {
+                                      return CircularProgressIndicator();
+                                    }
+                                  })
                             ]),
                       ),
                     ),

@@ -80,7 +80,7 @@ void main() {
   void mockWeatherServiceSearchCities() {
     when(() => mockWeatherService.searchCities('')).thenAnswer((_) async {
       return [
-        City(name: "New York", region: "New York", country: "United States")
+        City(name: "New York", region: "New York", country: "United States", longitude: 3, latitude: 4)
       ];
     });
   }
@@ -331,6 +331,36 @@ void main() {
       final listView = find.byType(ListView);
 
       expect(listView, findsOneWidget);
+    });
+
+    testWidgets("Selecting a city from the list should display the city",
+        (WidgetTester tester) async {
+      mockWeatherServiceLocationEnabled();
+      mockWeatherServiceSearchCities();
+      await tester.pumpWidget(createWidgetUnderTest());
+
+      await tester.pumpAndSettle();
+
+      final searchField = find.byType(TextField);
+
+      await tester.tap(searchField);
+
+      await tester.pumpAndSettle();
+
+      final listView = find.byType(ListView);
+
+      await tester.tap(find.text('New York'));
+
+      await tester.pumpAndSettle();
+
+      final currentlyPageKey = Key('CurrentlyPage');
+
+      final textFinder = find.descendant(
+        of: find.byKey(currentlyPageKey),
+        matching: find.text('New York'),
+      );
+
+      expect(textFinder, findsOneWidget);
     });
   });
 }

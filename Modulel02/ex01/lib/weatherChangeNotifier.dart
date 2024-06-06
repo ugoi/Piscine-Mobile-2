@@ -5,6 +5,13 @@ import 'package:location/location.dart';
 
 enum LocationState { loading, enabled, disabled, requested }
 
+class WeatherLocation {
+  final double latitude;
+  final double longitude;
+
+  WeatherLocation({required this.latitude, required this.longitude});
+}
+
 class WeatherChangeNotifier extends ChangeNotifier {
   final WeatherRepository weatherRepository;
 
@@ -107,12 +114,25 @@ class WeatherChangeNotifier extends ChangeNotifier {
     _searchLocation = city.name ?? '';
     _displayLocation = city.name ?? '';
     _city = city;
+    getWeatherForLocation(
+        WeatherLocation(latitude: city.latitude!, longitude: city.longitude!));
+
     notifyListeners();
   }
 
   Future<void> getLocation() async {
     _fetchLocationOperation = location.getLocation();
     notifyListeners();
+    try {
+      final LocationData locationData = await _fetchLocationOperation;
+      _displayLocation =
+          'Latitude: ${locationData.latitude}, Longitude: ${locationData.longitude}';
+      _locationState = LocationState.enabled;
+      _weatherData = weatherRepository.getWeatherData(locationData);
+      notifyListeners();
+    } catch (e) {
+      _locationState = LocationState.disabled;
+    }
   }
 
   Future<void> searchCities(String name) async {
@@ -123,5 +143,13 @@ class WeatherChangeNotifier extends ChangeNotifier {
   Future<void> getWeatcherForCurrentLocation() async {
     LocationData currentLocation = await location.getLocation();
     _weatherData = weatherRepository.getWeatherData(currentLocation);
+    notifyListeners();
+  }
+
+  Future<void> getWeatherForLocation(WeatherLocation location) async {
+    LocationData locationData = LocationData.fromMap(
+        {'latitude': location.latitude, 'longitude': location.longitude});
+    _weatherData = weatherRepository.getWeatherData(locationData);
+    notifyListeners();
   }
 }

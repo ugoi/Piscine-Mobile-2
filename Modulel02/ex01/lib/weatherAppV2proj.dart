@@ -43,9 +43,12 @@ class MyHomePage extends StatefulWidget {
 }
 
 class MyHomePageState extends State<MyHomePage> {
+  late final PageController _pageViewController;
+
   @override
   void initState() {
     super.initState();
+    _pageViewController = PageController();
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       final weatherNotifier =
           Provider.of<WeatherChangeNotifier>(context, listen: false);
@@ -54,8 +57,6 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   int _currentIndex = 0;
-
-  final _pageViewController = PageController();
 
   @override
   void dispose() {
@@ -68,139 +69,23 @@ class MyHomePageState extends State<MyHomePage> {
     return Consumer<WeatherChangeNotifier>(
       builder: (context, weather, child) {
         return Scaffold(
-          appBar: AppBar(
-              backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-              title: TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Search',
-                  prefixIcon: Icon(Icons.search),
-                  border: InputBorder.none,
-                ),
-                onSubmitted: (value) {
-                  weather.onSearchSubmitted(value);
-                },
-                onTap: () {
-                  weather.onSearchTap();
-                },
-                onTapOutside: (event) {
-                  weather.onSearchTapOutside();
-                  FocusScope.of(context).unfocus();
-                },
-                onChanged: (value) {
-                  weather.onSearchChanged(value);
-                },
-              ),
-              actions: <Widget>[
-                IconButton(
-                  icon: const Icon(Icons.navigation),
-                  onPressed: () {
-                    weather.onLocationClicked();
-                  },
-                ),
-              ]),
-          body: weather.searchTapped == true
-              ? FutureBuilder(
-                  future: weather.cities,
-                  builder: (BuildContext context,
-                      AsyncSnapshot<List<City>> snapshot) {
-                    if (snapshot.hasData) {
-                      return ListView.builder(
-                        itemCount: snapshot.data!.length,
-                        itemBuilder: (context, index) {
-                          return ListTile(
-                            title: RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: snapshot.data![index].name,
-                                    style: TextStyle(
-                                        fontWeight:
-                                            FontWeight.bold), // Makes text bold
-                                  ),
-                                  TextSpan(
-                                    text: ', ' +
-                                        (snapshot.data?[index].region ?? '') +
-                                        ', ' +
-                                        (snapshot.data?[index].country ?? ''),
-                                    style: TextStyle(
-                                        fontWeight: FontWeight
-                                            .normal), // Keeps rest of the text normal
-                                  ),
-                                ],
-                              ),
-                            ),
-                            onTap: () {
-                              weather.onCitySelected(snapshot.data![index]);
-                            },
-                          );
-                        },
-                      );
-                    } else {
-                      return CircularProgressIndicator();
-                    }
-                  })
-              : PageView(
-                  controller: _pageViewController,
-                  onPageChanged: (int index) {
-                    setState(() {
-                      _currentIndex = index;
-                    });
-                  },
-                  children: <Widget>[
-                    Center(
-                      key: const Key('CurrentlyPage'),
-                      child: FittedBox(
-                        child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: <Widget>[
-                              FutureBuilder(
-                                  future: weather.isLocationEnabled,
-                                  builder: (BuildContext context,
-                                      AsyncSnapshot<bool> snapshot) {
-                                    if (snapshot.hasData) {
-                                      if (snapshot.data!) {
-                                        return FutureBuilder(
-                                            future:
-                                                weather.fetchLocationOperation,
-                                            builder: (BuildContext context,
-                                                AsyncSnapshot<LocationData>
-                                                    snapshot) {
-                                              if (snapshot.hasData) {
-                                                return Column(
-                                                  children: [
-                                                    Text('Currently',
-                                                        style: TextStyle(
-                                                            fontSize: 24)),
-                                                    Text(
-                                                        snapshot.data!.latitude
-                                                                .toString() +
-                                                            ', ' +
-                                                            snapshot
-                                                                .data!.longitude
-                                                                .toString(),
-                                                        style: TextStyle(
-                                                            fontSize: 24)),
-                                                  ],
-                                                );
-                                              } else {
-                                                return CircularProgressIndicator();
-                                              }
-                                            });
-                                      } else {
-                                        return Text('Location is not enabled',
-                                            style: TextStyle(
-                                                fontSize: 24,
-                                                color: Colors.red));
-                                      }
-                                    } else {
-                                      return CircularProgressIndicator();
-                                    }
-                                  })
-                            ]),
-                      ),
-                    ),
-                  ],
-                ),
+          appBar: WeatherAppBar(context, weather),
+          body: Stack(children: <Widget>[
+            PageView(
+              controller: _pageViewController,
+              onPageChanged: (int index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              children: <Widget>[
+                CurrentlyPage(),
+                TodayPage(),
+                WeeklyPage(),
+              ],
+            ),
+            if (weather.searchTapped) CitySuggestions(),
+          ]),
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: _currentIndex,
             items: const <BottomNavigationBarItem>[
@@ -227,6 +112,297 @@ class MyHomePageState extends State<MyHomePage> {
           ),
         );
       },
+    );
+  }
+
+  AppBar WeatherAppBar(BuildContext context, WeatherChangeNotifier weather) {
+    return AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: TextField(
+          decoration: const InputDecoration(
+            hintText: 'Search',
+            prefixIcon: Icon(Icons.search),
+            border: InputBorder.none,
+          ),
+          onSubmitted: (value) {
+            weather.onSearchSubmitted(value);
+          },
+          onTap: () {
+            weather.onSearchTap();
+          },
+          // onTapOutside: (event) {
+          //   weather.onSearchTapOutside();
+          //   FocusScope.of(context).unfocus();
+          // },
+          onChanged: (value) {
+            weather.onSearchChanged(value);
+          },
+        ),
+        actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.navigation),
+            onPressed: () {
+              weather.onLocationClicked();
+            },
+          ),
+        ]);
+  }
+}
+
+class CitySuggestions extends StatelessWidget {
+  const CitySuggestions({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final weather = Provider.of<WeatherChangeNotifier>(context);
+    return Container(
+      color: Colors.white,
+      child: Column(
+        children: <Widget>[
+          Expanded(
+            child: FutureBuilder(
+                future: weather.cities,
+                builder:
+                    (BuildContext context, AsyncSnapshot<List<City>> snapshot) {
+                  if (snapshot.hasData) {
+                    return ListView.builder(
+                      itemCount: snapshot.data!.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          title: RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: snapshot.data![index].name,
+                                  style: TextStyle(
+                                      fontWeight:
+                                          FontWeight.bold), // Makes text bold
+                                ),
+                                TextSpan(
+                                  text: ', ' +
+                                      (snapshot.data?[index].region ?? '') +
+                                      ', ' +
+                                      (snapshot.data?[index].country ?? ''),
+                                  style: TextStyle(
+                                      fontWeight: FontWeight
+                                          .normal), // Keeps rest of the text normal
+                                ),
+                              ],
+                            ),
+                          ),
+                          onTap: () {
+                            weather.onCitySelected(snapshot.data![index]);
+                          },
+                        );
+                      },
+                    );
+                  } else {
+                    return CircularProgressIndicator();
+                  }
+                }),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CurrentlyPage extends StatelessWidget {
+  const CurrentlyPage({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final weather = Provider.of<WeatherChangeNotifier>(context);
+    return Center(
+      key: const Key('CurrentlyPage'),
+      child: FittedBox(
+        child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              FutureBuilder(
+                  future: weather.isLocationEnabled,
+                  builder:
+                      (BuildContext context, AsyncSnapshot<bool> snapshot) {
+                    if (snapshot.hasData) {
+                      if (snapshot.data!) {
+                        return FutureBuilder(
+                            future: weather.weatherData,
+                            builder: (BuildContext context,
+                                AsyncSnapshot<WeatherData> snapshot) {
+                              if (snapshot.hasData) {
+                                return DataTable(columns: [
+                                  DataColumn(
+                                    label: Text('Date'),
+                                  ),
+                                  DataColumn(
+                                    label: Text('Temperature'),
+                                  ),
+                                  DataColumn(label: Text('Weather')),
+                                  DataColumn(label: Text('Wind Speed')),
+                                ], rows: [
+                                  DataRow(cells: [
+                                    DataCell(Text('Currently')),
+                                    DataCell(Text(
+                                        '${snapshot.data?.currently?.temperature ?? "N/A"}')),
+                                    DataCell(Text(
+                                        '${snapshot.data?.currently?.weatherCode?.code ?? "N/A"}')),
+                                    DataCell(Text(
+                                        '${snapshot.data?.currently?.windSpeed ?? "N/A"}'))
+                                  ]),
+                                ]);
+                              } else {
+                                return CircularProgressIndicator();
+                              }
+                            });
+                      } else {
+                        return Text('Location is not enabled',
+                            style: TextStyle(fontSize: 24, color: Colors.red));
+                      }
+                    } else {
+                      return CircularProgressIndicator();
+                    }
+                  })
+            ]),
+      ),
+    );
+  }
+}
+
+class TodayPage extends StatelessWidget {
+  const TodayPage({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final weather = Provider.of<WeatherChangeNotifier>(context);
+    return Center(
+      key: const Key('TodayPage'),
+      child: FittedBox(
+        child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              FutureBuilder(
+                  future: weather.isLocationEnabled,
+                  builder:
+                      (BuildContext context, AsyncSnapshot<bool> snapshot) {
+                    if (snapshot.hasData) {
+                      if (snapshot.data!) {
+                        return FutureBuilder(
+                            future: weather.weatherData,
+                            builder: (BuildContext context,
+                                AsyncSnapshot<WeatherData> snapshot) {
+                              if (snapshot.hasData) {
+                                return DataTable(
+                                    columns: [
+                                      DataColumn(
+                                        label: Text('Date'),
+                                      ),
+                                      DataColumn(
+                                        label: Text('Temperature'),
+                                      ),
+                                      DataColumn(label: Text('Weather')),
+                                      DataColumn(label: Text('Wind Speed')),
+                                    ],
+                                    rows: (snapshot.data?.today ?? [])
+                                        .map(
+                                          (e) => DataRow(cells: [
+                                            DataCell(Text('${e.time}')),
+                                            DataCell(Text(
+                                                '${e.temperature ?? "N/A"}')),
+                                            DataCell(Text(
+                                                '${e.weatherCode?.code ?? "N/A"}')),
+                                            DataCell(
+                                                Text('${e.windSpeed ?? "N/A"}'))
+                                          ]),
+                                        )
+                                        .toList());
+                              } else {
+                                return CircularProgressIndicator();
+                              }
+                            });
+                      } else {
+                        return Text('Location is not enabled',
+                            style: TextStyle(fontSize: 24, color: Colors.red));
+                      }
+                    } else {
+                      return CircularProgressIndicator();
+                    }
+                  })
+            ]),
+      ),
+    );
+  }
+}
+
+class WeeklyPage extends StatelessWidget {
+  const WeeklyPage({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final weather = Provider.of<WeatherChangeNotifier>(context);
+    return Center(
+      key: const Key('WeeklyPage'),
+      child: FittedBox(
+        child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              FutureBuilder(
+                  future: weather.isLocationEnabled,
+                  builder:
+                      (BuildContext context, AsyncSnapshot<bool> snapshot) {
+                    if (snapshot.hasData) {
+                      if (snapshot.data!) {
+                        return FutureBuilder(
+                            future: weather.weatherData,
+                            builder: (BuildContext context,
+                                AsyncSnapshot<WeatherData> snapshot) {
+                              if (snapshot.hasData) {
+                                return DataTable(
+                                    columns: [
+                                      DataColumn(
+                                        label: Text('Date'),
+                                      ),
+                                      DataColumn(
+                                        label: Text('Min Temperature'),
+                                      ),
+                                      DataColumn(
+                                          label: Text('Max Temperature')),
+                                      DataColumn(label: Text('Weather Code')),
+                                    ],
+                                    rows: (snapshot.data?.weekly ?? [])
+                                        .map(
+                                          (e) => DataRow(cells: [
+                                            DataCell(Text('${e.time}')),
+                                            DataCell(Text(
+                                                '${e.minTemperature ?? "N/A"}')),
+                                            DataCell(Text(
+                                                '${e.maxTemperature ?? "N/A"}')),
+                                            DataCell(Text(
+                                                '${e.weatherCode?.code ?? "N/A"}'))
+                                          ]),
+                                        )
+                                        .toList());
+                              } else {
+                                return CircularProgressIndicator();
+                              }
+                            });
+                      } else {
+                        return Text('Location is not enabled',
+                            style: TextStyle(fontSize: 24, color: Colors.red));
+                      }
+                    } else {
+                      return CircularProgressIndicator();
+                    }
+                  })
+            ]),
+      ),
     );
   }
 }

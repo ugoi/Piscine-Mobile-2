@@ -54,7 +54,7 @@ class WeatherService {
   Future<OpenMeteoForecast> getOpenMeteoWeather(
       LocationData locationData) async {
     final response = await httpClient.get(Uri.parse(
-        "https://api.open-meteo.com/v1/forecast?latitude=${locationData.latitude}&longitude=${locationData.longitude}&daily=5&hourly=24"));
+        "https://api.open-meteo.com/v1/forecast?latitude=${locationData.latitude}&longitude=${locationData.longitude}&current=temperature_2m,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min"));
 
     if (response.statusCode != 200) {
       throw Exception('Failed to load weather data');

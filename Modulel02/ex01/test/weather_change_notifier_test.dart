@@ -4,6 +4,8 @@ import 'package:ex01/weatherRepository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:location/location.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:http/http.dart' as http;
+
 
 class MockWeatherRepository extends Mock implements WeatherRepository {}
 

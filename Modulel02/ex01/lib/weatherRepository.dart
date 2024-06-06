@@ -38,13 +38,13 @@ class WeatherRepository {
       today.add(TodayWeatherData(
           time: openMeteoForecast.hourly?.time?[i],
           temperature: openMeteoForecast.hourly?.temperature2M?[i],
-          weatherCode: openMeteoForecast.hourly?.weatherCode?[i],
+          weatherCode: WeatherCode(openMeteoForecast.hourly?.weatherCode?[i]),
           windSpeed: openMeteoForecast.hourly?.windSpeed10M?[i]));
     }
 
     final currently = CurrentlyWeatherData(
         temperature: openMeteoForecast.current?.temperature2M,
-        weatherCode: openMeteoForecast.current?.weatherCode,
+        weatherCode: WeatherCode(openMeteoForecast.current?.weatherCode),
         windSpeed: openMeteoForecast.current?.windSpeed10M);
 
     final weekly = <WeeklyWeatherData>[];
@@ -55,7 +55,7 @@ class WeatherRepository {
           time: openMeteoForecast.daily?.time?[i],
           minTemperature: openMeteoForecast.daily?.temperature2MMin?[i],
           maxTemperature: openMeteoForecast.daily?.temperature2MMax?[i],
-          weatherCode: openMeteoForecast.daily?.weatherCode?[i]));
+          weatherCode: WeatherCode(openMeteoForecast.daily?.weatherCode?[i])));
     }
 
     final weatherData = WeatherData(

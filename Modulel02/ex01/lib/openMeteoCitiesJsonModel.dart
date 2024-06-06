@@ -3,7 +3,7 @@
 //     final openMeteoCities = openMeteoCitiesFromJson(jsonString);
 
 import 'dart:convert';
-import 'dart:ffi';
+
 
 OpenMeteoCities openMeteoCitiesFromJson(String str) => OpenMeteoCities.fromJson(json.decode(str));
 
